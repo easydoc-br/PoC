@@ -1,0 +1,265 @@
+version: '3'
+
+services:
+  
+  postgres:
+    image: postgres:9.6
+    container_name: postgres
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+      - TZ="America/Sao_Paulo"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:4
+    container_name: redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    expose:
+      - "6379"
+    environment:
+      - TZ="America/Sao_Paulo"
+    volumes:
+      - ./data/redis:/data
+    command: "--appendonly yes"
+
+  webdis:
+    image: anapsix/webdis
+    container_name: webdis
+    hostname: webdis
+    ports:
+      - "7379:7379"
+    depends_on:
+      - redis
+    expose:
+      - "7379"
+    environment:
+      - TZ="America/Sao_Paulo"
+
+  elk:
+    build:
+      context: ./src/elk
+      dockerfile: Dockerfile
+    container_name: elk
+    hostname: elk
+    ports:
+      - "4560:4560"
+      - "5601:5601"
+      - "5044:5044"
+      - "8200:8200"
+      - "8300:8300"
+    expose:
+      - "4560"
+      - "5601"
+      - "5044"
+      - "8200"
+      - "8300"
+    environment:
+      - TZ="America/Sao_Paulo"
+    volumes:
+      - ./data/elk:/var/lib/elasticsearch
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    hostname: minio
+    environment:
+      - TZ="America/Sao_Paulo"
+    ports:
+      - "9000:9000"
+    expose:
+      - "9000"
+    volumes:
+      - ./data/minio/data:/data
+      - ./data/minio/config:/root/.minio
+    command: "server /data"
+
+#  cassandra:
+#    image: cassandra:latest
+#    container_name: cassandra
+#    hostname: cassandra
+#    environment:
+#      - TZ="America/Sao_Paulo"
+#      - CASSANDRA_BROADCAST_ADDRESS=
+#      - CASSANDRA_DC=
+#      - CASSANDRA_CLUSTER_NAME=
+#      - CASSANDRA_SEEDS=
+#      - CASSANDRA_RPC_ADDRESS=
+#      - CASSANDRA_START_RPC=
+#      - CASSANDRA_NUM_TOKENS=
+#      - CASSANDRA_RACK=
+#      - CASSANDRA_ENDPOINT_SNITCH=
+#    ports:
+#      - "9000:9000"
+#    expose:
+#      - "9000"
+#    volumes:
+#      - ./data/cassandra:/var/lib/cassandra 
+
+#  kong:
+#    image: kong:latest
+#    container_name: kong
+#    hostname: kong
+#    environment:
+#      - TZ="America/Sao_Paulo"
+#      - KONG_LOG_LEVEL=info
+#      - KONG_DATABASE=cassandra
+#      - KONG_CASSANDRA_CONTACT_POINTS=kong-database
+#    ports:
+#      - "8000:8000"
+#      - "8443:8443"
+#      - "8001:8001"
+#      - "8444:8444"
+#      - "7946:7946"
+#    expose:
+#      - "8000"
+#      - "8443"
+#      - "8001"
+#      - "8444"
+#      - "7946"
+
+#  kong-dashboard:
+#    image: pgbi/kong-dashboard:latest
+#    container_name: kong-dashboard
+#    hostname: kong-dashboard
+#    environment:
+#      - TZ="America/Sao_Paulo"
+#    ports:
+#      - "8088:8080"
+#    expose:
+#      - "8080"
+#    command: 
+#      - "start --kong-url http://kong:8001 --basic-auth admin=password guest=guest"
+
+  rabbitmq:
+    image: rabbitmq:3.6-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    expose:
+      - "5672"
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+
+  rabbitmq-restapi:
+    container_name: rabbitmq-restapi
+    hostname: rabbitmq-restapi
+    build:
+      context: ./src/rabbitmq-restapi
+      dockerfile: Dockerfile
+    ports:
+      - "6672:8080"
+    expose:
+      - "8080"
+    depends_on:
+      - rabbitmq
+    working_dir: /opt/local/rabbitmq-restapi
+    command: -address="0.0.0.0:8080" -amqp="amqp://admin:password0@rabbitmq:5672/"
+
+  zookeeper:
+    #build: 
+    #  context: ./src/zookeeper
+    #  dockerfile: Dockerfile
+    image: zookeeper
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+    expose:
+      - "2181"
+    environment:
+      - TZ=America/Sao_Paulo
+      - ZOO_MY_ID=1
+    volumes:
+      #- ./data/zookeeper:/var/opt/zookeeper
+      - ./data/zookeeper:/data
+      - ./data/zookeeper/logs:/datalog
+
+  stormui:
+    build:
+      context: ./src/storm/storm-base
+      dockerfile: Dockerfile
+    container_name: stormui
+    hostname: stormui
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    depends_on:
+      - zookeeper
+    environment:
+      - TZ=America/Sao_Paulo
+      - LOGSTASH=elk:4560
+      - APPNAME=testapp
+      - HOST=stormui
+      - APPENDERSTASH=true
+      - STORM_UI=1
+      - ZOOKEEPER=zookeeper
+      - NIMBUS=stormnimbus
+    volumes:
+      - ./data/ui:/var/lib/storm
+      - ./data/ui/logs:/opt/storm/logs
+
+  stormnimbus:
+    build:
+      context: ./src/storm/storm-base
+      dockerfile: Dockerfile
+    container_name: stormnimbus
+    hostname: stormnimbus
+    ports:
+      - "6627:6627"
+    expose:
+      - "6627"
+    depends_on:
+      - zookeeper
+    environment:
+      - TZ=America/Sao_Paulo
+      - LOGSTASH=elk:4560
+      - APPNAME=testapp
+      - HOST=stormnimbus
+      - APPENDERSTASH=true
+      - STORM_NIMBUS=1
+      - NIMBUS=stormnimbus
+      - ZOOKEEPER=zookeeper
+    volumes:
+      - ./data/nimbus:/var/lib/storm
+      - ./data/nimbus/logs:/opt/storm/logs
+
+  stormsupervisor:
+    build:
+      context: ./src/storm/storm-supervisor
+      dockerfile: Dockerfile
+    container_name: stormsupervisor
+    hostname: stormsupervisor
+    depends_on:
+      - zookeeper
+    ports:
+      - "6701:6701"
+      - "6702:6702"
+    expose:
+      - "6701"
+      - "6702"
+    environment:
+      - TZ=America/Sao_Paulo
+      - LOGSTASH=elk:4560
+      - APPNAME=testapp
+      - HOST=stormsupervisor
+      - APPENDERSTASH=true
+      - STORM_SUPERVISOR=1
+      - ZOOKEEPER=zookeeper
+      - NIMBUS=stormnimbus
+    volumes:
+      - ./data/supervisor:/var/lib/storm
+      - ./data/supervisor/logs:/opt/storm/logs

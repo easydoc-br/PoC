@@ -1,0 +1,29 @@
+#!/usr/bin/env groovy
+pipeline {
+    agent any
+
+    stages {
+        stage('Build Docker') {
+            steps {
+                echo 'Building Docker...'
+		sh 'docker build -t registry.easydocs.com.br:5000/platform/easywatch:1.0.${BUILD_ID} .'
+                sh 'docker push registry.easydocs.com.br:5000/platform/easywatch:1.0.${BUILD_ID}'
+            }
+        }
+       stage('Docker Smoke Tests') {
+            steps {
+                echo 'Not defined yet...'
+            }
+        }
+        stage('Deploy Docker') {
+            steps {
+                echo 'Not defined yet...'
+            }
+        }
+    }
+    post { 
+        always { 
+            cleanWs()
+        }
+    } 
+}

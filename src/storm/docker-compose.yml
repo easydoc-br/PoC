@@ -1,0 +1,69 @@
+# Docker Compose file for Storm
+
+# Build with:
+# docker-compose build .
+
+# Run with:
+# docker-compose up
+
+stormui:
+  build: storm-base
+  ports:
+    - "8080:8080"
+  environment:
+    - TZ=America/Sao_Paulo
+    - LOGSTASH=192.168.0.38:4560
+    - APPNAME=testapp
+    - HOST=test
+    - APPENDERSTASH=true
+    - STORM_UI=1
+    - ZOOKEEPER=192.168.0.24
+    - NIMBUS=192.168.0.28
+
+  volumes:
+    - ./data/ui:/var/lib/storm
+    - ./logs/ui:/opt/storm/logs
+
+  #command: /bin/bash
+
+stormnimbus:
+  build: storm-base
+  hostname: 192.168.56.101
+  ports:
+    - "6627:6627"
+  environment:
+    - TZ=America/Sao_Paulo
+    - LOGSTASH=192.168.0.38:4560
+    - APPNAME=testapp
+    - HOST=test
+    - APPENDERSTASH=true
+    - STORM_UI=1
+    - ZOOKEEPER=192.168.0.24
+    - NIMBUS=192.168.0.28
+
+  volumes:
+    - ./data/supervisor:/var/lib/storm
+    - ./logs/supervisor:/opt/storm/logs
+
+  
+  
+stormsupervisor:
+  build: storm-supervisor
+  hostname: 192.168.56.101
+  ports:
+    - "6701:6701"
+    - "6702:6702"
+  environment:
+    - TZ=America/Sao_Paulo
+    - LOGSTASH=192.168.0.38:4560
+    - APPNAME=testapp
+    - HOST=test
+    - APPENDERSTASH=true
+    - STORM_UI=1
+    - ZOOKEEPER=192.168.0.24
+    - NIMBUS=192.168.0.28
+
+  volumes:
+    - ./data/supervisor:/var/lib/storm
+    - ./logs/supervisor:/opt/storm/logs
+

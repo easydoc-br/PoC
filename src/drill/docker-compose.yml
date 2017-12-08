@@ -1,0 +1,17 @@
+drill:
+  #image: docker.ilog.com.br:443/ilog/drill:latest
+  build: .
+  ports:
+    - "8047:8047"
+    - "31010:31010"
+    - "31011:31011"
+    - "31012:31012"
+  environment:
+    - TZ=America/Sao_Paulo
+    - ZOOKEEPER=192.168.0.24:2181
+    - DRILL_HEAP=512m
+    - DRILL_HOST_NAME=172.19.190.10
+  volumes:
+    - ./tmp:/tmp
+    - ./logs:/opt/drill/log
+
